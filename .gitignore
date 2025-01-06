@@ -1,2 +1,8 @@
+##* General
+.env
+*.log
+*.pot
+
+##* Python
 *.pyc
 gunicorn.conf
