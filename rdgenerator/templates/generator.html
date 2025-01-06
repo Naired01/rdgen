@@ -117,11 +117,13 @@
                     <i class="fab fa-windows platform-icon active" data-platform="windows"></i>
                     <i class="fab fa-linux platform-icon" data-platform="linux"></i>
                     <i class="fab fa-android platform-icon" data-platform="android"></i>
+                    <i class="fab fa-apple platform-icon" data-platform="macos"></i>
                 </div>
                 <select name="platform" id="id_platform">
                     <option value="windows" selected>Windows</option>
                     <option value="linux">Linux</option>
                     <option value="android">Android</option>
+                    <option value="macos">macOS</option>
                 </select>
                 <label for="{{ form.version.id_for_label }}">Rustdesk Version:</label>
                 {{ form.version }}
@@ -131,7 +133,7 @@
         <div class="container">   
             <div class="section">
                 <h2><i class="fas fa-sliders-h"></i> General</h2>
-                    <label for="{{ form.exename.id_for_label }}">Name of the configuration:</label>
+                    <label for="{{ form.exename.id_for_label }}">Name of the configuration (don't use spaces or special characters):</label>
                     {{ form.exename }}<br><br>
                     <label for="{{ form.appname.id_for_label }}">Custom Application Name (leave blank to use default):</label>
                     {{ form.appname }}<br><br>
