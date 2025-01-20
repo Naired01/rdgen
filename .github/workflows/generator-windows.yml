@@ -374,6 +374,13 @@ jobs:
           Invoke-WebRequest -Uri https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/hidecm.diff -OutFile hidecm.diff
           git apply hidecm.diff
 
+      - name: statussort
+        continue-on-error: true
+        if: fromJson(inputs.extras).statussort == 'true'
+        run: |
+          Invoke-WebRequest -Uri https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/statussort.diff -OutFile statussort.diff
+          git apply statussort.diff
+
 
       - name: run as admin
         continue-on-error: true
@@ -477,17 +484,28 @@ jobs:
           method: 'POST'
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "70% complete, this step takes about 5 minutes, be patient."}'
+      
+      - name: zip dlls
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./rustdesk/*.dll, ./rustdesk/*.exe -DestinationPath ./rustdesk/unsigned_files.zip -CompressionLevel Fastest
 
-      - name: Sign rustdesk files
-        uses: GermanBluefox/code-sign-action@v7
-        if: env.UPLOAD_ARTIFACT == 'true'
-        with:
-          certificate: '${{ secrets.WINDOWS_PFX_BASE64 }}'
-          password: '${{ secrets.WINDOWS_PFX_PASSWORD }}'
-          certificatesha1: '${{ secrets.WINDOWS_PFX_SHA1_THUMBPRINT }}'
-          # certificatename: '${{ secrets.CERTNAME }}'
-          folder: './rustdesk/'
-          recursive: true
+      - name: sign dlls
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -X POST -F "file=@./rustdesk/unsigned_files.zip" \
+                -H "X-API-KEY: ${{ secrets.SIGN_API_KEY }}" \
+                -m 900 \
+                "${{ secrets.SIGN_URL }}/sign/" -o ./rustdesk/signed_files.zip 
+
+      - name: unzip dlls
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Expand-Archive -Path ./rustdesk/signed_files.zip -DestinationPath ./rustdek/ -Force
+          
 
       - name: Create custom.txt file
         shell: bash
@@ -508,19 +526,22 @@ jobs:
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/rustdesk.exe"
 
-      # - name: Add MSBuild to PATH
-      #   uses: microsoft/setup-msbuild@v2
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
 
-      # - name: Build msi
-      #   if: env.UPLOAD_ARTIFACT == 'true'
-      #   run: |
-      #     pushd ./res/msi
-      #     python preprocess.py --arp -d ../../rustdesk
-      #     nuget restore msi.sln
-      #     msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
-      #     cp ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-latest.msi
-      #     mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
-      #     sha256sum ../../SignOutput/rustdesk-*.msi
+      - name: Build msi
+        continue-on-error: true
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          pushd ./res/msi
+          $myappname = "${{ inputs.appname }}"
+          $myappname = $myappname -replace '\s','_'
+          python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
+          nuget restore msi.sln
+          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+          cp ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-latest.msi
+          mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk.msi
+          sha256sum ../../SignOutput/rustdesk.msi
 
       # - name: Sign rustdesk self-extracted file
       #   if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != ''
@@ -536,16 +557,37 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "85% complete"}'
 
-      - name: Sign rustdesk self-extracted file
-        uses: GermanBluefox/code-sign-action@v7
-        if: env.UPLOAD_ARTIFACT == 'true'
-        with:
-          certificate: '${{ secrets.WINDOWS_PFX_BASE64 }}'
-          password: '${{ secrets.WINDOWS_PFX_PASSWORD }}'
-          certificatesha1: '${{ secrets.WINDOWS_PFX_SHA1_THUMBPRINT }}'
-          # certificatename: '${{ secrets.WINDOWS_PFX_NAME }}'
-          folder: './SignOutput'
-          recursive: false
+      - name: zip exe and msi
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./SignOutput/*.exe, ./SignOutput/*.msi -DestinationPath ./SignOutput/unsigned_files.zip -CompressionLevel Fastest
+
+      - name: sign exe and msi
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -X POST -F "file=@./SignOutput/unsigned_files.zip" \
+                -H "X-API-KEY: ${{ secrets.SIGN_API_KEY }}" \
+                -m 900 \
+                "${{ secrets.SIGN_URL }}/sign/" -o ./SignOutput/signed_files.zip 
+
+      - name: unzip exe and msi
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Expand-Archive -Path ./SignOutput/signed_files.zip -DestinationPath ./SignOutput/ -Force
+
+      # - name: Sign rustdesk self-extracted file
+      #   uses: GermanBluefox/code-sign-action@v7
+      #   if: env.UPLOAD_ARTIFACT == 'true'
+      #   with:
+      #     certificate: '${{ secrets.WINDOWS_PFX_BASE64 }}'
+      #     password: '${{ secrets.WINDOWS_PFX_PASSWORD }}'
+      #     certificatesha1: '${{ secrets.WINDOWS_PFX_SHA1_THUMBPRINT }}'
+      #     # certificatename: '${{ secrets.WINDOWS_PFX_NAME }}'
+      #     folder: './SignOutput'
+      #     recursive: false
 
       # - name: Publish Release
       #   uses: softprops/action-gh-release@v1
@@ -561,6 +603,11 @@ jobs:
         run: |
           mv ./SignOutput/rustdesk.exe "./SignOutput/${{ inputs.filename }}.exe" || echo "rustdesk"
 
+      - name: rename rustdesk.msi to filename.msi
+        continue-on-error: true
+        run: |
+          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ inputs.filename }}.msi" || echo "rustdesk"
+
       # - name: Upload to FTP
       #   if: ${{ fromJson(inputs.extras).rdgen == 'true' }}
       #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -575,12 +622,14 @@ jobs:
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" -F "uuid=${{ inputs.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
 
       - name: send file to api server
         if: ${{ fromJson(inputs.extras).rdgen == 'false' }}
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.exe" ${{ inputs.apiServer }}/api/save_custom_client
+          curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./SignOutput/${{ inputs.filename }}.msi" ${{ inputs.apiServer }}/api/save_custom_client || true
 
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
