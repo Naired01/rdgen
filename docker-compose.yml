@@ -1,0 +1,16 @@
+services:
+ rdgen:
+   image: rdgen
+   container_name: rdgen
+   ports:
+     - "8005:8000"
+   environment:
+     DEBUG: ${DEBUG}
+     GENURL: ${GENURL}
+     GHBEARER: ${GHBEARER}
+     GHUSER: ${GHUSER}
+   env_file:
+     - .env
+   volumes:
+      - ./data-t:/app/data-t
+      - ./ws:/app/ws
