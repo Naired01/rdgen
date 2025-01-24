@@ -19,7 +19,6 @@ COPY requirements.txt /app/
  
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-RUN python manage.py migrate
  
 # Stage 2: Production stage
 FROM python:3.13-slim
@@ -49,4 +48,4 @@ USER appuser
 EXPOSE 8000 
  
 # Start the application
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "rdgen.wsgi:application"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
