@@ -87,7 +87,7 @@ env:
 
 jobs:
   generate-bridge:
-    uses: ./.github/workflows/bridge.yml
+    uses: ./.github/workflows/pre137-bridge.yml
     with:
       version: ${{ fromJson(inputs.extras).version }}
 
@@ -99,13 +99,6 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          # - {
-          #   target: x86_64-apple-darwin,
-          #   os: macos-13, #macos-latest or macos-14 use M1 now, https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#:~:text=14%20GB-,macos%2Dlatest%20or%20macos%2D14,-The%20macos%2Dlatestlabel
-          #   extra-build-args: "",
-          #   arch: x86_64,
-          #   vcpkg-triplet: x64-osx,
-          # }
           - {
               target: aarch64-apple-darwin,
               os: macos-latest,
@@ -141,20 +134,20 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "5% complete"}'
 
+      
+
       - name: Checkout source code
         if: ${{ env.VERSION != 'master' }}
         uses: actions/checkout@v4
         with:
             repository: rustdesk/rustdesk
             ref: refs/tags/${{ env.VERSION }}
-            submodules: recursive
   
       - name: Checkout source code
         if: ${{ env.VERSION == 'master' }}
         uses: actions/checkout@v4
         with:
             repository: rustdesk/rustdesk
-            submodules: recursive
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -530,10 +523,6 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "25% complete"}'
 
-      - name: Create MacOS directory structure
-        run: |
-          mkdir -p ./build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS
-
       - name: Build rustdesk
         run: |
           if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
@@ -545,10 +534,6 @@ jobs:
           fi
           sed -i -e "s/RustDesk.app/\"${{ inputs.appname }}.app\"/" build.py
           ./build.py --flutter --hwcodec ${{ matrix.job.extra-build-args }}
-
-      # - name: Copy service file
-      #   run: |
-      #     cp -rf ../target/release/service ./build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/
 
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
