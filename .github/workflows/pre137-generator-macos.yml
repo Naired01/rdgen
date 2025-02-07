@@ -464,6 +464,13 @@ jobs:
         run: |
           wget https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/statussort.diff
           git apply statussort.diff
+
+      - name: removeNewVersionNotif
+        continue-on-error: true
+        if: fromJson(inputs.extras).removeNewVersionNotif == 'true'
+        run: | 
+          wget https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/removeNewVersionNotif.diff
+          git apply removeNewVersionNotif.diff
       
       
       - name: Install Rust toolchain
@@ -680,7 +687,7 @@ jobs:
 
       - name: Create DMG
         run: |
-          cd /Users/runner/work/rdgen/rdgen/flutter/build/macos/Build/Products/Release
+          cd /Users/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/flutter/build/macos/Build/Products/Release
           # Print directory contents for debugging
           echo "Directory contents:"
           ls -la

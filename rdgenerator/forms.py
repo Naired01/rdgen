@@ -3,7 +3,7 @@ from django import forms
 class GenerateForm(forms.Form):
     #Platform
     platform = forms.ChoiceField(choices=[('windows','Windows'),('linux','Linux (currently unavailable)'),('android','Android'),('macos','macOS')], initial='windows')
-    version = forms.ChoiceField(choices=[('master','nightly'),('1.3.7','1.3.7'),('1.3.6','1.3.6'),('1.3.5','1.3.5'),('1.3.4','1.3.4'),('1.3.3','1.3.3'),('1.3.2','1.3.2'),('1.3.1','1.3.1'),('1.3.0','1.3.0')], initial='1.3.7')
+    version = forms.ChoiceField(choices=[('master','nightly'),('1.3.7','1.3.7'),('1.3.6','1.3.6'),('1.3.5','1.3.5'),('1.3.4','1.3.4'),('1.3.3','1.3.3')], initial='1.3.7')
     delayFix = forms.BooleanField(initial=True, required=False)
 
     #General
@@ -28,10 +28,13 @@ class GenerateForm(forms.Form):
     apiServer = forms.CharField(label="API Server", required=False)
     key = forms.CharField(label="Key", required=False)
     urlLink = forms.CharField(label="Custom URL for links", required=False)
+    downloadLink = forms.CharField(label="Custom URL for downloading new versions", required=False)
 
     #Visual
     iconfile = forms.FileField(label="Custom App Icon (in .png format)", required=False, widget=forms.FileInput(attrs={'accept': 'image/png'}))
     logofile = forms.FileField(label="Custom App Logo (in .png format)", required=False, widget=forms.FileInput(attrs={'accept': 'image/png'}))
+    iconbase64 = forms.CharField(required=False)
+    logobase64 = forms.CharField(required=False)
     theme = forms.ChoiceField(choices=[
         ('light', 'Light'),
         ('dark', 'Dark'),
@@ -72,3 +75,4 @@ class GenerateForm(forms.Form):
     xOffline = forms.BooleanField(initial=False, required=False)
     hidecm = forms.BooleanField(initial=False, required=False)
     statussort = forms.BooleanField(initial=False, required=False)
+    removeNewVersionNotif = forms.BooleanField(initial=False, required=False)
