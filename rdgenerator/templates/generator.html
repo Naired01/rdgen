@@ -122,6 +122,34 @@
         .error {
             color: red;
         }
+        .errorlist {
+            color: red;
+            display: flex; /* Enable flexbox for centering */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically (if needed) */
+            list-style: none; /* Remove bullet points if it's a list */
+            padding: 0; /* Remove default padding */
+            margin: 10px auto; /* Center the list itself, add some top/bottom margin */
+            width: fit-content; /* Make the width fit the content */
+        }
+
+        .errorlist li {
+            margin: 5px; /* Add some spacing between list items */
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .help-text {
+            color: #ffd700;
+            font-style: italic;
+            animation: blink 2s infinite;
+            padding: 5px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-left: 10px;
       </style>
 </head>
 <body>
@@ -137,6 +165,13 @@
                 </div>
             </div>
         </div>
+        {% if form.iconfile.errors %}
+            <ul class="errorlist">
+                {% for error in form.iconfile.errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         <div class="platform">
             <h2><i class="fas fa-desktop"></i> Select Platform</h2>
                 <div class="platform-icons">
@@ -153,6 +188,10 @@
                 </select>
                 <label for="{{ form.version.id_for_label }}">Rustdesk Version:</label>
                 {{ form.version }}
+                {% if form.version.help_text %}
+                    <span class="help-text">{{ form.version.help_text }}</span>
+                {% endif %}
+                <div class="help-text">{{ form.version.help_text }}</div>
                 <label for="{{ form.delayFix.id_for_label }}">{{ form.delayFix }} Fix connection delay when using third-party API</label>
             </div>
         </div>
@@ -183,6 +222,8 @@
                     {{ form.urlLink }}<br><br>
                     <label for="{{ form.downloadLink.id_for_label }}">Custom URL for downloading updates (replaces https://rustdesk.com/download):</label>
                     {{ form.downloadLink }}<br><br>
+                    <label for="{{ form.compname.id_for_label }}">Company name for copyright (replaces Purslane Ltd):</label>
+                    {{ form.compname }}<br><br>
             </div>
         </div>
         <div class="container">
@@ -241,7 +282,6 @@
                     <label for="{{ form.cycleMonitor.id_for_label }}">{{ form.cycleMonitor }} Add a button to cycle through available monitors to the minimized toolbar.</label><br>
                     <label for="{{ form.xOffline.id_for_label }}">{{ form.xOffline }} Display an X for offline devices in the addressbook.</label><br>
                     <label for="{{ form.hidecm.id_for_label }}">{{ form.hidecm }} Allow hiding the connection window from remote screen.</label><br>
-                    <label for="{{ form.statussort.id_for_label }}">{{ form.statussort }} Allow sorting by online status.</label><br>
                     <label for="{{ form.removeNewVersionNotif.id_for_label }}">{{ form.removeNewVersionNotif }} Remove notification for new versions.</label><br>
             </div>
 
@@ -398,24 +438,33 @@
                         try {
                             const formData = JSON.parse(e.target.result);
                             for (const key in formData) {
-                                const element = document.querySelector(`[name="${key}"]`);
+                                // More robust selector: checks for name OR id
+                                const elements = document.querySelectorAll(`[name="${key}"], [id="${key}"]`);
 
-                                if (element) { // Check if the element exists
-                                    if (element.type === 'checkbox' || element.type === 'radio') {
-                                        element.checked = formData[key]; // Set checked property
-                                    } else if (element.type !== 'file') { //for other elements
-                                        element.value = formData[key];
-                                    }
+                                if (elements.length > 0) { // Check if any element(s) exist
+                                    elements.forEach(element => { // Loop through all matching elements (important for radios)
+                                        if (element.type === 'radio') {
+                                            if (element.value === String(formData[key])) { // Compare value, crucial for radios
+                                                element.checked = true;
+                                            } else {
+                                                element.checked = false; // Uncheck others in the group
+                                            }
+                                        } else if (element.type === 'checkbox') {
+                                            element.checked = formData[key];
+                                        } else if (element.type !== 'file') {
+                                            element.value = formData[key];
+                                        }
 
-                                    // Handle image previews (as before)
-                                    if (key === 'iconfile' && formData[key]) {
-                                        document.getElementById('id_iconbase64').value = formData[key]
-                                        document.getElementById('icon-preview').innerHTML = `<img src="${formData[key]}" style="max-width: 300px; max-height: 60px;">`;
-                                    }
-                                    if (key === 'logofile' && formData[key]) {
-                                        document.getElementById('id_logobase64').value = formData[key]
-                                        document.getElementById('logo-preview').innerHTML = `<img src="${formData[key]}" style="max-width: 300px; max-height: 60px;">`;
-                                    }
+                                        // Handle image previews (as before)
+                                        if (key === 'iconfile' && formData[key]) {
+                                            document.getElementById('id_iconbase64').value = formData[key];
+                                            document.getElementById('icon-preview').innerHTML = `<img src="${formData[key]}" style="max-width: 300px; max-height: 60px;">`;
+                                        }
+                                        if (key === 'logofile' && formData[key]) {
+                                            document.getElementById('id_logobase64').value = formData[key];
+                                            document.getElementById('logo-preview').innerHTML = `<img src="${formData[key]}" style="max-width: 300px; max-height: 60px;">`;
+                                        }
+                                    });
                                 }
                             }
                         } catch (error) {

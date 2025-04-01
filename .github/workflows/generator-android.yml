@@ -69,21 +69,14 @@ env:
   TAG_NAME: "${{ inputs.upload-tag }}"
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   # vcpkg version: 2024.07.12
-  VCPKG_COMMIT_ID: "b2cb0da531c2f1f740045bfe7c4dac59f0b2b69c"
+  VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
   VERSION: "${{ fromJson(inputs.extras).version }}"
   NDK_VERSION: "r27c"
   #signing keys env variable checks
   ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
   MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
-  # To make a custom build with your own servers set the below secret values
-  RS_PUB_KEY: "${{ inputs.key }}"
-  RENDEZVOUS_SERVER: "${{ inputs.server }}"
-  CUSTOM: "${{ inputs.custom }}"
-  UUIDFOLDER: "${{ inputs.uuid }}"
-  API_SERVER: "${{ inputs.apiServer }}"
   UPLOAD_ARTIFACT: 'true'
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}"
-  ICONBASE64: "$${{ inputs.iconbase64 }}"
   STATUS_URL: "${{ secrets.GENURL }}/updategh"
 
 jobs:
@@ -297,7 +290,6 @@ jobs:
           mv ./res/icon.ico ./res/icon.ico.bak
           mv ./res/icon.png ./res/icon.png.bak
           mv ./res/tray-icon.ico ./res/tray-icon.ico.bak
-          #echo "${{ inputs.iconbase64 }}" | base64 -d > ./res/icon.png
           wget -O ./res/icon.png ${{ fromJson(inputs.iconlink).url }}/get_png?filename=${{ fromJson(inputs.iconlink).file }}"&"uuid=${{ fromJson(inputs.iconlink).uuid }}
           mv ./res/32x32.png ./res/32x32.png.bak
           mv ./res/64x64.png ./res/64x64.png.bak
@@ -318,6 +310,16 @@ jobs:
           sed -i '/adaptive_icon_background/a \ \ adaptive_icon_foreground: "../res/icon.png"' ./flutter/pubspec.yaml
           sed -i '/adaptive_icon_foreground:/a \ \ adaptive_icon_foreground_inset: 32' ./flutter/pubspec.yaml
           sed -i '/ic_launcher_background/d' ./flutter/android/app/src/main/res/values/colors.xml
+
+      - name: set server, key, and apiserver
+        continue-on-error: true
+        shell: bash
+        run: |
+          sed -i -e 's|rs-ny.rustdesk.com|${{ inputs.server }}|' ./libs/hbb_common/src/config.rs
+          sed -i -e 's|OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=|${{ inputs.key }}|' ./libs/hbb_common/src/config.rs
+          sed -i -e 's|https://admin.rustdesk.com|${{ inputs.apiServer }}|' ./src/common.rs
+          # ./flutter/pubspec.yaml
+          #sed -i '/intl:/a \ \ archive: ^3.6.1' ./flutter/pubspec.yaml
           
       - name: change appname to custom
         if: inputs.appname != 'rustdesk'
@@ -338,7 +340,7 @@ jobs:
           sed -i -e 's|"Copyright © 2025 Purslane Ltd. All rights reserved."|"Copyright © 2025"|' ./flutter/windows/runner/Runner.rc
           sed -i -e 's|"rustdesk.exe"|"${{ inputs.filename }}"|' ./flutter/windows/runner/Runner.rc
           sed -i -e 's|"RustDesk"|"${{ inputs.appname }}"|' ./flutter/windows/runner/Runner.rc
-          sed -i -e 's|RustDesk|${{ inputs.appname }}|' ./src/lang/en.rs
+          find ./src/lang -name "*.rs" -exec sed -i -e 's|RustDesk|${{ inputs.appname }}|' {} \;
           sed -i -e 's|RustDesk|${{ inputs.appname }}|' ./flutter/android/app/src/main/res/values/strings.xml
           sed -i -e "s|title: 'RustDesk'|title: '${{ inputs.appname }}'|" ./flutter/lib/main.dart
           sed -i -e "s|return 'RustDesk';|return '${{ inputs.appname }}';|" ./flutter/lib/web/bridge.dart
@@ -380,7 +382,7 @@ jobs:
         run: |
           sed -i -e '/const KEY:/,/};/d' ./src/common.rs
           sed -i -e '/let Ok(data) = sign::verify(&data, &pk)/,/};/d' ./src/common.rs
-          sed -i '/intl:/a \ \ archive: ^3.6.1' ./flutter/pubspec.yaml
+          # sed -i '/intl:/a \ \ archive: ^3.6.1' ./flutter/pubspec.yaml
 
       - name: fix connection delay
         continue-on-error: true
@@ -410,19 +412,11 @@ jobs:
           wget https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/hidecm.diff
           git apply hidecm.diff
 
-      - name: statussort
-        continue-on-error: true
-        if: fromJson(inputs.extras).statussort == 'true'
-        run: |
-          wget https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/statussort.diff
-          git apply statussort.diff
-
       - name: removeNewVersionNotif
         continue-on-error: true
         if: fromJson(inputs.extras).removeNewVersionNotif == 'true'
         run: | 
-          wget https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/removeNewVersionNotif.diff
-          git apply removeNewVersionNotif.diff
+          sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
 
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
@@ -486,6 +480,15 @@ jobs:
           customHeaders: '{"Content-Type": "application/json"}'
           data: '{"uuid": "${{ inputs.uuid }}", "status": "45% complete"}'
 
+      - name: icons
+        if: ${{ inputs.iconlink != 'false' }}
+        continue-on-error: true
+        run: |
+          mv ./flutter/assets/icon.svg ./flutter/assets/icon.svg.bak
+          convert ./res/icon.png ./flutter/assets/icon.svg
+          convert ./res/128x128.png -resize 200% ./flutter/assets/128x128@2x.png || true
+          cp ./flutter/assets/icon.svg ./res/scalable.svg
+
       - name: Build rustdesk
         shell: bash
         env:
@@ -499,14 +502,8 @@ jobs:
             mkdir -p ./flutter/android/app/src/main/jniLibs/arm64-v8a
             cp ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so ./flutter/android/app/src/main/jniLibs/arm64-v8a/
             cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so
-            echo -n "${{ env.CUSTOM }}" | cat > ./flutter/assets/custom.txt
+            echo -n "${{ inputs.custom }}" | cat > ./flutter/assets/custom.txt
             #sed -i '/^    - assets\//a\    - assets/custom.txt' ./flutter/pubspec.yaml
-            if [[ "${{ inputs.iconlink }}" != "false" ]]; then
-              mv ./flutter/assets/icon.svg ./flutter/assets/icon.svg.bak
-              convert ./res/icon.png ./flutter/assets/icon.svg
-              convert ./res/128x128.png -resize 200% ./flutter/assets/128x128@2x.png
-              convert ./res/icon.png ./res/scalable.svg
-            fi
             # build flutter
             pushd flutter
             flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm64 --split-per-abi
@@ -516,14 +513,8 @@ jobs:
               mkdir -p ./flutter/android/app/src/main/jniLibs/armeabi-v7a
               cp ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/arm-linux-androideabi/libc++_shared.so ./flutter/android/app/src/main/jniLibs/armeabi-v7a/
               cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/armeabi-v7a/librustdesk.so
-              echo -n "${{ env.CUSTOM }}" | cat > ./flutter/assets/custom.txt
+              echo -n "${{ inputs.custom }}" | cat > ./flutter/assets/custom.txt
               #sed -i '/^    - assets\//a\    - assets/custom.txt' ./flutter/pubspec.yaml
-              if [[ "${{ inputs.iconlink }}" != "false" ]]; then
-                mv ./flutter/assets/icon.svg ./flutter/assets/icon.svg.bak
-                convert ./res/icon.png ./flutter/assets/icon.svg
-                convert ./res/128x128.png -resize 200% ./flutter/assets/128x128@2x.png
-                convert ./res/icon.png ./res/scalable.svg
-              fi
               # build flutter
               pushd flutter
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm --split-per-abi
@@ -533,14 +524,8 @@ jobs:
               mkdir -p ./flutter/android/app/src/main/jniLibs/x86_64
               cp ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/x86_64-linux-android/libc++_shared.so ./flutter/android/app/src/main/jniLibs/x86_64/
               cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86_64/librustdesk.so
-              echo -n "${{ env.CUSTOM }}" | cat > ./flutter/assets/custom.txt
+              echo -n "${{ inputs.custom }}" | cat > ./flutter/assets/custom.txt
               #sed -i '/^    - assets\//a\    - assets/custom.txt' ./flutter/pubspec.yaml
-              if [[ "${{ inputs.iconlink }}" != "false" ]]; then
-                mv ./flutter/assets/icon.svg ./flutter/assets/icon.svg.bak
-                convert ./res/icon.png ./flutter/assets/icon.svg
-                convert ./res/128x128.png -resize 200% ./flutter/assets/128x128@2x.png
-                convert ./res/icon.png ./res/scalable.svg
-              fi
               # build flutter
               pushd flutter
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-x64 --split-per-abi
@@ -550,14 +535,8 @@ jobs:
               mkdir -p ./flutter/android/app/src/main/jniLibs/x86
               cp ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/i686-linux-android/libc++_shared.so ./flutter/android/app/src/main/jniLibs/x86/
               cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86/librustdesk.so
-              echo -n "${{ env.CUSTOM }}" | cat > ./flutter/assets/custom.txt
+              echo -n "${{ inputs.custom }}" | cat > ./flutter/assets/custom.txt
               #sed -i '/^    - assets\//a\    - assets/custom.txt' ./flutter/pubspec.yaml
-              if [[ "${{ inputs.iconlink }}" != "false" ]]; then
-                mv ./flutter/assets/icon.svg ./flutter/assets/icon.svg.bak
-                convert ./res/icon.png ./flutter/assets/icon.svg
-                convert ./res/128x128.png -resize 200% ./flutter/assets/128x128@2x.png
-                convert ./res/icon.png ./res/scalable.svg
-              fi
               # build flutter
               pushd flutter
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-x86 --split-per-abi
@@ -603,17 +582,6 @@ jobs:
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" -F "file=@./signed-apk/${{ inputs.filename }}-${{ matrix.job.arch }}.apk" ${{ inputs.apiServer }}/api/save_custom_client
-      #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      #   with:
-      #     server: ${{ secrets.GEN_FTP_SERVER }}
-      #     username: ${{ secrets.GEN_FTP_USER }}
-      #     password: ${{ secrets.GEN_FTP_PASSWORD }}
-      #     local-dir: ./signed-apk/
-      #     server-dir: /root/rdgen/exe/${{ env.UUIDFOLDER }}/ 
-      #     exclude: | 
-      #       *.idsig
-      #       *.jks
-      #       *aligned.apk
 
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
