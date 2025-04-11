@@ -69,7 +69,7 @@ env:
   TAG_NAME: "${{ inputs.upload-tag }}"
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   # vcpkg version: 2024.07.12
-  VCPKG_COMMIT_ID: "b2cb0da531c2f1f740045bfe7c4dac59f0b2b69c"
+  VCPKG_COMMIT_ID: "460551b0ec06be1ba6b918448bf3b0f44add813d"
   VERSION: "${{ fromJson(inputs.extras).version }}"
   NDK_VERSION: "r27c"
   #signing keys env variable checks
@@ -93,13 +93,13 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          # - {
-          #   target: x86_64-apple-darwin,
-          #   os: macos-13, #macos-latest or macos-14 use M1 now, https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#:~:text=14%20GB-,macos%2Dlatest%20or%20macos%2D14,-The%20macos%2Dlatestlabel
-          #   extra-build-args: "",
-          #   arch: x86_64,
-          #   vcpkg-triplet: x64-osx,
-          # }
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-13, #macos-latest or macos-14 use M1 now, https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#:~:text=14%20GB-,macos%2Dlatest%20or%20macos%2D14,-The%20macos%2Dlatestlabel
+              extra-build-args: "",
+              arch: x86_64,
+              vcpkg-triplet: x64-osx,
+            }
           - {
               target: aarch64-apple-darwin,
               os: macos-latest,
@@ -473,6 +473,7 @@ jobs:
         if: fromJson(inputs.extras).removeNewVersionNotif == 'true'
         run: | 
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
+          sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
       - name: Report Status
         uses: fjogeleit/http-request-action@v1
@@ -727,8 +728,8 @@ jobs:
             
           if [ -n "$DMG_FILE" ]; then
             echo "Found DMG file: $DMG_FILE"
-            mv "$DMG_FILE" "${{ inputs.filename }}.dmg"
-            echo "Renamed to ${{ inputs.filename }}.dmg"
+            mv "$DMG_FILE" "${{ inputs.filename }}-${{ matrix.job.arch }}.dmg"
+            echo "Renamed to ${{ inputs.filename }}-${{ matrix.job.arch }}.dmg"
           else
             echo "No DMG file found matching the pattern"
             exit 1
@@ -741,7 +742,7 @@ jobs:
           curl -i -X POST \
             -H "Content-Type: multipart/form-data" \
             -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" \
-            -F "file=@$GITHUB_WORKSPACE/${{ inputs.filename }}.dmg" \
+            -F "file=@$GITHUB_WORKSPACE/${{ inputs.filename }}-${{ matrix.job.arch }}.dmg" \
             -F "uuid=${{ inputs.uuid }}" \
             "${{ secrets.GENURL }}/save_custom_client"
         
@@ -753,7 +754,7 @@ jobs:
           curl -i -X POST \
             -H "Content-Type: multipart/form-data" \
             -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" \
-            -F "file=@$GITHUB_WORKSPACE/${{ inputs.filename }}.dmg" \
+            -F "file=@$GITHUB_WORKSPACE/${{ inputs.filename }}-${{ matrix.job.arch }}.dmg" \
             "${{ inputs.apiServer }}/api/save_custom_client"
 
       - name: Report Status
