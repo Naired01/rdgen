@@ -2,3 +2,4 @@ django
 requests
 pillow
 gunicorn
+pyzipper

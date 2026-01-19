@@ -287,6 +287,8 @@
                     {{ form.installation }}<br><br>
                     <label for="{{ form.settings.id_for_label }}">Disable Settings:</label>
                     {{ form.settings }}<br><br>
+                    <label for="{{ form.androidappid.id_for_label }}">Custom Android App ID (replaces 'com.carriez.flutter_hbb', leave blank to use default):</label>
+                    {{ form.androidappid }}<br><br>
             </div>
 
             <div class="section">
@@ -308,8 +310,6 @@
         <div class="container">
             <div class="section">
                 <h2><i class="fas fa-shield-alt"></i> Security</h2>
-                    <label for="{{ form.runasadmin.id_for_label }}">Always run as Administrator?</label>
-                    {{ form.runasadmin }}<br><br>
                     <label for="{{ form.passApproveMode.id_for_label }}">Password Approve mode:</label>
                     {{ form.passApproveMode }}<br><br>
                     <div id="passwordRequirement" class="password-requirement">To use the hide connection window feature, please set a permanent password.</div>
