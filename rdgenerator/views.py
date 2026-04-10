@@ -28,7 +28,10 @@ def generator_view(request):
             else:
                 selfhosted = False
             platform = form.cleaned_data['platform']
-            version = form.cleaned_data['version']
+            if request.POST.get('custom_ver') != "Default" and request.POST.get('custom_ver') != "":
+                version = request.POST.get('custom_ver')
+            else:
+                version = form.cleaned_data['version']
             delayFix = form.cleaned_data['delayFix']
             cycleMonitor = form.cleaned_data['cycleMonitor']
             xOffline = form.cleaned_data['xOffline']
