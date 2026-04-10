@@ -30,12 +30,18 @@ jobs:
               extra-build-args: "",
             }
     steps:
+      - name: Clean version
+        id: clean_version
+        run: |
+          VERSION="${{ inputs.version }}"
+          CLEAN_VERSION=$(echo "$VERSION" | sed -E 's/^cm[0-9]*-//')
+          echo "clean=$CLEAN_VERSION" >> $GITHUB_OUTPUT
       - name: Checkout source code
         if: ${{ inputs.version != 'master' }}
         uses: actions/checkout@v4
         with:
           repository: rustdesk/rustdesk
-          ref: refs/tags/${{ inputs.version }}
+          ref: refs/tags/${{ steps.clean_version.outputs.clean }}
           submodules: recursive
         
       - name: Checkout source code
