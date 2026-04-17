@@ -28,7 +28,7 @@ def generator_view(request):
             else:
                 selfhosted = False
             platform = form.cleaned_data['platform']
-            if request.POST.get('custom_ver') != "Default" and request.POST.get('custom_ver') != "":
+            if request.POST.get('custom_ver') != "Default":
                 version = request.POST.get('custom_ver')
             else:
                 version = form.cleaned_data['version']
